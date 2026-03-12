@@ -1,0 +1,1651 @@
+{
+  "info": {
+    "_postman_id": "palmyst-api-v1",
+    "name": "Palmyst API",
+    "description": "Complete REST API collection for the Palmyst palm-reading backend.\n\n**Quick Start:**\n1. Import this collection + `palmyst.postman_environment.json`\n2. Select the **Palmyst Local** environment\n3. Run `npx supabase status` and paste the `anon key` into `anon_key`\n4. Run **01 - Authentication > Sign In** — `auth_token` and `user_id` are set automatically\n\n**API Layers:**\n- Auth: `/auth/v1/`\n- REST / RPC: `/rest/v1/` and `/rest/v1/rpc/`\n- Edge Functions: `/functions/v1/`\n- Storage: `/storage/v1/`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:54321", "type": "string" },
+    { "key": "anon_key", "value": "", "type": "string", "description": "Supabase anon key — get from `npx supabase status`" }
+  ],
+  "item": [
+    {
+      "name": "01 - Authentication",
+      "description": "User registration, login, and token management.",
+      "item": [
+        {
+          "name": "Sign Up",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\",\n  \"data\": {\n    \"full_name\": \"Jane Doe\",\n    \"referred_by\": null\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/v1/signup",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "v1", "signup"]
+            },
+            "description": "Register a new user. Triggers handle_new_user() which creates a profile with 5 welcome credits. Pass a valid `referred_by` profile UUID in `data` to trigger the referral bonus."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.access_token) {",
+                  "  pm.environment.set('auth_token', body.access_token);",
+                  "  pm.environment.set('refresh_token', body.refresh_token ?? '');",
+                  "  pm.environment.set('user_id', body.user?.id ?? '');",
+                  "  console.log('Signed up as', body.user?.email);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sign In",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/v1/token?grant_type=password",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "v1", "token"],
+              "query": [{ "key": "grant_type", "value": "password" }]
+            },
+            "description": "Sign in with email + password. Sets auth_token, refresh_token, and user_id automatically."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has access token', () => pm.expect(body).to.have.property('access_token'));",
+                  "pm.environment.set('auth_token', body.access_token);",
+                  "pm.environment.set('refresh_token', body.refresh_token ?? '');",
+                  "pm.environment.set('user_id', body.user?.id ?? '');",
+                  "console.log('Signed in. user_id =', body.user?.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/v1/token?grant_type=refresh_token",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "v1", "token"],
+              "query": [{ "key": "grant_type", "value": "refresh_token" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.environment.set('auth_token', body.access_token);",
+                  "pm.environment.set('refresh_token', body.refresh_token ?? '');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/v1/user",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "v1", "user"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has id', () => pm.expect(pm.response.json()).to.have.property('id'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update User (password / metadata)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": {\n    \"full_name\": \"Jane Smith\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/v1/user",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "v1", "user"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sign Out",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/v1/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "v1", "logout"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));",
+                  "pm.environment.set('auth_token', '');",
+                  "pm.environment.set('refresh_token', '');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request Password Reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/v1/recover",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "v1", "recover"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Profiles",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Accept", "value": "application/vnd.pgrst.object+json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/profiles?select=*&id=eq.{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "profiles"],
+              "query": [
+                { "key": "select", "value": "*" },
+                { "key": "id", "value": "eq.{{user_id}}" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has credit_balance', () => pm.expect(body).to.have.property('credit_balance'));",
+                  "console.log('Credit balance:', body.credit_balance);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Prefer", "value": "return=representation" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Jane Smith\",\n  \"preferred_language_id\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/profiles?id=eq.{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "profiles"],
+              "query": [{ "key": "id", "value": "eq.{{user_id}}" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Palms",
+      "item": [
+        {
+          "name": "List My Palms",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/palms?select=*&order=created_at.desc",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "palms"],
+              "query": [
+                { "key": "select", "value": "*" },
+                { "key": "order", "value": "created_at.desc" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const arr = pm.response.json();",
+                  "if (arr.length > 0) pm.environment.set('palm_id', arr[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Palm by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Accept", "value": "application/vnd.pgrst.object+json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/palms?id=eq.{{palm_id}}&select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "palms"],
+              "query": [
+                { "key": "id", "value": "eq.{{palm_id}}" },
+                { "key": "select", "value": "*" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Palm",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Prefer", "value": "return=representation" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"owner_id\": \"{{user_id}}\",\n  \"name\": \"My Palm\",\n  \"age\": 28,\n  \"gender\": \"female\",\n  \"is_self\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/palms",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "palms"]
+            },
+            "description": "Create a palm profile. Set palm_image_url after uploading image to Storage."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const arr = pm.response.json();",
+                  "if (arr.length > 0) {",
+                  "  pm.environment.set('palm_id', arr[0].id);",
+                  "  console.log('Created palm_id =', arr[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Palm (set image URL)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Prefer", "value": "return=representation" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"palm_image_url\": \"https://storage.example.com/palms/my-palm.jpg\",\n  \"age\": 29\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/palms?id=eq.{{palm_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "palms"],
+              "query": [{ "key": "id", "value": "eq.{{palm_id}}" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Palm",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/palms?id=eq.{{palm_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "palms"],
+              "query": [{ "key": "id", "value": "eq.{{palm_id}}" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Catalogue",
+      "description": "Read-only lookup tables: categories, languages, tool creators.",
+      "item": [
+        {
+          "name": "List Active Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/categories?order=display_order&select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "categories"],
+              "query": [
+                { "key": "order", "value": "display_order" },
+                { "key": "select", "value": "*" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const arr = pm.response.json();",
+                  "if (arr.length > 0) pm.environment.set('category_id', arr[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Active Languages",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/languages?order=display_order&select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "languages"],
+              "query": [
+                { "key": "order", "value": "display_order" },
+                { "key": "select", "value": "*" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Tool Creators",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/tool_creators?select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "tool_creators"],
+              "query": [{ "key": "select", "value": "*" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Tools",
+      "item": [
+        {
+          "name": "List All Active Tools",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/tools?select=*,categories(name,slug)&order=display_order",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "tools"],
+              "query": [
+                { "key": "select", "value": "*,categories(name,slug)" },
+                { "key": "order", "value": "display_order" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const arr = pm.response.json();",
+                  "if (arr.length > 0) pm.environment.set('tool_id', arr[0].id);",
+                  "console.log('Tools found:', arr.length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Featured Tools",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/tools?is_featured=eq.true&order=display_order&select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "tools"],
+              "query": [
+                { "key": "is_featured", "value": "eq.true" },
+                { "key": "order", "value": "display_order" },
+                { "key": "select", "value": "*" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Tool Detail (features + creator)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Accept", "value": "application/vnd.pgrst.object+json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/tools?id=eq.{{tool_id}}&select=*,tool_features(*),tool_creators(name,avatar_url,bio)",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "tools"],
+              "query": [
+                { "key": "id", "value": "eq.{{tool_id}}" },
+                { "key": "select", "value": "*,tool_features(*),tool_creators(name,avatar_url,bio)" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter Tools by Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/tools?category_id=eq.{{category_id}}&order=display_order&select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "tools"],
+              "query": [
+                { "key": "category_id", "value": "eq.{{category_id}}" },
+                { "key": "order", "value": "display_order" },
+                { "key": "select", "value": "*" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Tool Features",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/tool_features?tool_id=eq.{{tool_id}}&order=display_order&select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "tool_features"],
+              "query": [
+                { "key": "tool_id", "value": "eq.{{tool_id}}" },
+                { "key": "order", "value": "display_order" },
+                { "key": "select", "value": "*" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Tool Sessions",
+      "item": [
+        {
+          "name": "Start Tool Session (RPC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"p_tool_id\": \"{{tool_id}}\",\n  \"p_palm1_id\": \"{{palm_id}}\",\n  \"p_palm2_id\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/rpc/start_tool_session",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "rpc", "start_tool_session"]
+            },
+            "description": "Validates credits and palm ownership, deducts credits, creates session. Returns session UUID. Then call analyze-palm Edge Function immediately."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const sessionId = pm.response.json();",
+                  "pm.test('Returns UUID', () => pm.expect(typeof sessionId).to.equal('string'));",
+                  "pm.environment.set('session_id', sessionId);",
+                  "console.log('session_id =', sessionId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List My Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/tool_sessions?select=*,tools(name,icon_url,slug)&order=created_at.desc",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "tool_sessions"],
+              "query": [
+                { "key": "select", "value": "*,tools(name,icon_url,slug)" },
+                { "key": "order", "value": "created_at.desc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Session Detail (metrics + solutions)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Accept", "value": "application/vnd.pgrst.object+json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/tool_sessions?id=eq.{{session_id}}&select=*,tool_session_metrics(*),session_solutions(id,solution_type,is_unlocked,credits_to_unlock,unlocked_at)",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "tool_sessions"],
+              "query": [
+                { "key": "id", "value": "eq.{{session_id}}" },
+                { "key": "select", "value": "*,tool_session_metrics(*),session_solutions(id,solution_type,is_unlocked,credits_to_unlock,unlocked_at)" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has status', () => pm.expect(body).to.have.property('status'));",
+                  "console.log('Session status:', body.status, '| Score:', body.overall_score);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Session Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/tool_session_metrics?session_id=eq.{{session_id}}&order=display_order&select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "tool_session_metrics"],
+              "query": [
+                { "key": "session_id", "value": "eq.{{session_id}}" },
+                { "key": "order", "value": "display_order" },
+                { "key": "select", "value": "*" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Session Solutions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/session_solutions?session_id=eq.{{session_id}}&select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "session_solutions"],
+              "query": [
+                { "key": "session_id", "value": "eq.{{session_id}}" },
+                { "key": "select", "value": "*" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Solutions",
+      "item": [
+        {
+          "name": "Unlock Solution (RPC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"p_session_id\": \"{{session_id}}\",\n  \"p_solution_type\": \"traditional\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/rpc/unlock_solution",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "rpc", "unlock_solution"]
+            },
+            "description": "Deducts 5 credits and returns the solution content. Idempotent — calling again returns content without charging again. p_solution_type: 'traditional' or 'science_backed'."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Is unlocked', () => pm.expect(body.is_unlocked).to.be.true);",
+                  "pm.test('Has content', () => pm.expect(body.content).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 - Action Plans",
+      "item": [
+        {
+          "name": "Get Plan for Tool",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/actionable_plans?tool_id=eq.{{tool_id}}&select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "actionable_plans"],
+              "query": [
+                { "key": "tool_id", "value": "eq.{{tool_id}}" },
+                { "key": "select", "value": "*" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const arr = pm.response.json();",
+                  "if (arr.length > 0) pm.environment.set('plan_id', arr[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Plan Actions (with steps)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/plan_actions?plan_id=eq.{{plan_id}}&select=*,action_steps(*)&order=display_order",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "plan_actions"],
+              "query": [
+                { "key": "plan_id", "value": "eq.{{plan_id}}" },
+                { "key": "select", "value": "*,action_steps(*)" },
+                { "key": "order", "value": "display_order" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const arr = pm.response.json();",
+                  "if (arr.length > 0) pm.environment.set('action_id', arr[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Action Progress for Session",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/user_action_progress?session_id=eq.{{session_id}}&select=*,plan_actions(title,why_this_matters,what_you_can_do,display_order)&order=created_at",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "user_action_progress"],
+              "query": [
+                { "key": "session_id", "value": "eq.{{session_id}}" },
+                { "key": "select", "value": "*,plan_actions(title,why_this_matters,what_you_can_do,display_order)" },
+                { "key": "order", "value": "created_at" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const arr = pm.response.json();",
+                  "const available = arr.find(p => p.status === 'available');",
+                  "if (available) {",
+                  "  pm.environment.set('progress_id', available.id);",
+                  "  console.log('progress_id (available) =', available.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Advance Action (RPC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"p_progress_id\": \"{{progress_id}}\",\n  \"p_feeling\": \"felt_good\",\n  \"p_notes\": \"This helped me reflect on my daily habits.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/rpc/advance_action",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "rpc", "advance_action"]
+            },
+            "description": "Marks current action as completed and unlocks the next one. p_feeling: felt_good | was_uncomfortable | not_sure_yet."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has completed field', () => pm.expect(body).to.have.property('completed'));",
+                  "if (body.next) pm.environment.set('progress_id', body.next);",
+                  "console.log('has_next:', body.has_next);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "09 - Chat",
+      "item": [
+        {
+          "name": "List Chat Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/chat_sessions?select=*&order=updated_at.desc",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "chat_sessions"],
+              "query": [
+                { "key": "select", "value": "*" },
+                { "key": "order", "value": "updated_at.desc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Chat Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Prefer", "value": "return=representation" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"tool_session_id\": \"{{session_id}}\",\n  \"title\": \"Questions about my reading\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/chat_sessions",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "chat_sessions"]
+            },
+            "description": "Create a chat session. Link to a tool_session_id to enable context-aware AI responses."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const arr = pm.response.json();",
+                  "if (arr.length > 0) {",
+                  "  pm.environment.set('chat_session_id', arr[0].id);",
+                  "  console.log('chat_session_id =', arr[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Chat Messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/chat_messages?chat_session_id=eq.{{chat_session_id}}&order=created_at.asc&select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "chat_messages"],
+              "query": [
+                { "key": "chat_session_id", "value": "eq.{{chat_session_id}}" },
+                { "key": "order", "value": "created_at.asc" },
+                { "key": "select", "value": "*" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Like / Dislike Message",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"is_liked\": true }",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/chat_messages?id=eq.{{message_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "chat_messages"],
+              "query": [{ "key": "id", "value": "eq.{{message_id}}" }]
+            },
+            "description": "is_liked: true = liked, false = disliked, null = no rating."
+          }
+        },
+        {
+          "name": "Delete Chat Session",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/chat_sessions?id=eq.{{chat_session_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "chat_sessions"],
+              "query": [{ "key": "id", "value": "eq.{{chat_session_id}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Credits",
+      "item": [
+        {
+          "name": "Get My Credits (RPC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/rpc/get_my_credits",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "rpc", "get_my_credits"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has balance', () => pm.expect(body).to.have.property('balance'));",
+                  "console.log('Current balance:', body.balance);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Record Share Reward (RPC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"p_tool_id\": \"{{tool_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/rpc/record_share_reward",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "rpc", "record_share_reward"]
+            },
+            "description": "Grants 2 credits for sharing a tool. Rate-limited: once per tool per 24 hours."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "console.log('Rewarded:', body.rewarded, body.reason ?? '');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11 - Reviews",
+      "item": [
+        {
+          "name": "List Reviews for Tool",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/tool_reviews?tool_id=eq.{{tool_id}}&select=*,profiles(display_name,avatar_url)&order=created_at.desc",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "tool_reviews"],
+              "query": [
+                { "key": "tool_id", "value": "eq.{{tool_id}}" },
+                { "key": "select", "value": "*,profiles(display_name,avatar_url)" },
+                { "key": "order", "value": "created_at.desc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Submit Review (RPC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"p_tool_id\": \"{{tool_id}}\",\n  \"p_rating\": 5,\n  \"p_review_text\": \"Incredibly accurate and insightful!\",\n  \"p_session_id\": \"{{session_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/rpc/submit_review",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "rpc", "submit_review"]
+            },
+            "description": "First submission earns 3 credits. Subsequent updates earn 0. p_session_id and p_review_text are optional."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "console.log('New review:', body.is_new_review, '| Credits earned:', body.credits_earned);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "12 - Subscriptions & Purchases",
+      "item": [
+        {
+          "name": "List Active Subscription Plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/subscription_plans?order=display_order&select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "subscription_plans"],
+              "query": [
+                { "key": "order", "value": "display_order" },
+                { "key": "select", "value": "*" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Validate Promo Code (RPC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"p_code\": \"SAVE20\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/rpc/validate_promo_code",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "rpc", "validate_promo_code"]
+            },
+            "description": "Returns {valid: true, discount_type, discount_value} or {valid: false, error}. Code is case-insensitive."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "console.log('Promo valid:', body.valid, body.error ?? '');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List My Purchases",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/user_purchases?order=created_at.desc&select=*,subscription_plans(name,slug,credits_included)",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "user_purchases"],
+              "query": [
+                { "key": "order", "value": "created_at.desc" },
+                { "key": "select", "value": "*,subscription_plans(name,slug,credits_included)" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Notifications",
+      "item": [
+        {
+          "name": "List All Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/notifications?order=created_at.desc&select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "notifications"],
+              "query": [
+                { "key": "order", "value": "created_at.desc" },
+                { "key": "select", "value": "*" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const arr = pm.response.json();",
+                  "if (arr.length > 0) pm.environment.set('notification_id', arr[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Unread Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/notifications?is_read=eq.false&order=created_at.desc&select=*",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "notifications"],
+              "query": [
+                { "key": "is_read", "value": "eq.false" },
+                { "key": "order", "value": "created_at.desc" },
+                { "key": "select", "value": "*" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"is_read\": true }",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/notifications?id=eq.{{notification_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "notifications"],
+              "query": [{ "key": "id", "value": "eq.{{notification_id}}" }]
+            }
+          }
+        },
+        {
+          "name": "Mark All Notifications Read (RPC)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/rest/v1/rpc/mark_all_notifications_read",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "rpc", "mark_all_notifications_read"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "console.log('Notifications marked read:', pm.response.json());"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "14 - Banners",
+      "item": [
+        {
+          "name": "List Active Banners",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/banners?order=display_order&select=*,categories(name,slug),tools(name,slug)",
+              "host": ["{{base_url}}"],
+              "path": ["rest", "v1", "banners"],
+              "query": [
+                { "key": "order", "value": "display_order" },
+                { "key": "select", "value": "*,categories(name,slug),tools(name,slug)" }
+              ]
+            },
+            "description": "RLS auto-filters to banners where is_active=true and within valid_from/valid_until window."
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 - Edge Functions",
+      "description": "Supabase Edge Functions running on Deno. Require apikey + Authorization headers.",
+      "item": [
+        {
+          "name": "Analyze Palm",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": \"{{session_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/functions/v1/analyze-palm",
+              "host": ["{{base_url}}"],
+              "path": ["functions", "v1", "analyze-palm"]
+            },
+            "description": "Call immediately after start_tool_session. Uses Claude Opus 4.6 vision to analyse palm images. On failure, credits are automatically refunded via trigger."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Status completed', () => pm.expect(body.status).to.equal('completed'));",
+                  "console.log('Analysis complete. session_id =', body.session_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send Chat Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chat_session_id\": \"{{chat_session_id}}\",\n  \"message\": \"What does my heart line say about my emotional life?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/functions/v1/chat",
+              "host": ["{{base_url}}"],
+              "path": ["functions", "v1", "chat"]
+            },
+            "description": "Send a message and receive an AI response (Claude Haiku 4.5). If the chat session is linked to a completed tool_session, the AI has context of that reading."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has content', () => pm.expect(body.content).to.be.a('string').and.not.empty);",
+                  "pm.environment.set('message_id', body.message_id);",
+                  "console.log('AI reply:', body.content.substring(0, 80) + '...');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Process Payment Webhook (Stripe simulation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "stripe-signature", "value": "t=1700000000,v1=test_signature_placeholder" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"payment_intent.succeeded\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"pi_test_123\",\n      \"amount\": 499,\n      \"currency\": \"usd\",\n      \"receipt_email\": \"user@example.com\",\n      \"metadata\": {\n        \"supabase_user_id\": \"{{user_id}}\",\n        \"plan_slug\": \"basic\"\n      }\n    }\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/functions/v1/process-payment",
+              "host": ["{{base_url}}"],
+              "path": ["functions", "v1", "process-payment"]
+            },
+            "description": "Webhook endpoint — called by Stripe or RevenueCat. In production, the signature is auto-computed by the provider. For local testing, use the Stripe CLI: `stripe listen --forward-to http://127.0.0.1:54321/functions/v1/process-payment`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 or 401', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+                  "});",
+                  "console.log('Webhook response:', JSON.stringify(pm.response.json()));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "16 - Storage (Palm Images)",
+      "description": "Upload and retrieve palm images from Supabase Storage. Create a bucket named 'palms' in the Storage dashboard first.",
+      "item": [
+        {
+          "name": "Upload Palm Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "image/jpeg" }
+            ],
+            "body": {
+              "mode": "file",
+              "file": {}
+            },
+            "url": {
+              "raw": "{{base_url}}/storage/v1/object/palms/{{user_id}}/palm.jpg",
+              "host": ["{{base_url}}"],
+              "path": ["storage", "v1", "object", "palms", "{{user_id}}", "palm.jpg"]
+            },
+            "description": "Upload a palm image. After upload, call PATCH /rest/v1/palms to set palm_image_url."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "console.log('Uploaded:', body.Key);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Signed URL for Palm Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon_key}}" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"expiresIn\": 3600 }",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/storage/v1/object/sign/palms/{{user_id}}/palm.jpg",
+              "host": ["{{base_url}}"],
+              "path": ["storage", "v1", "object", "sign", "palms", "{{user_id}}", "palm.jpg"]
+            },
+            "description": "Generate a signed URL for temporary access to a private palm image (1 hour expiry)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "console.log('Signed URL:', pm.response.json().signedURL);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

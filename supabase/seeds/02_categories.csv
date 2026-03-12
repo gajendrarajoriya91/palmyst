@@ -1,0 +1,7 @@
+id,name,slug,icon_url,display_order,is_active,created_at,updated_at
+c0000000-0000-4000-a000-000000000001,Relationship,relationship,https://cdn.palmyst.app/icons/relationship.svg,1,true,2026-01-15T08:00:00Z,2026-01-15T08:00:00Z
+c0000000-0000-4000-a000-000000000002,Finance,finance,https://cdn.palmyst.app/icons/finance.svg,2,true,2026-01-15T08:00:00Z,2026-01-15T08:00:00Z
+c0000000-0000-4000-a000-000000000003,Career,career,https://cdn.palmyst.app/icons/career.svg,3,true,2026-01-15T08:00:00Z,2026-01-15T08:00:00Z
+c0000000-0000-4000-a000-000000000004,Health,health,https://cdn.palmyst.app/icons/health.svg,4,true,2026-01-15T08:00:00Z,2026-01-15T08:00:00Z
+c0000000-0000-4000-a000-000000000005,Growth,growth,https://cdn.palmyst.app/icons/growth.svg,5,true,2026-01-15T08:00:00Z,2026-01-15T08:00:00Z
+c0000000-0000-4000-a000-000000000006,Personal Life,personal-life,https://cdn.palmyst.app/icons/personal-life.svg,6,true,2026-01-15T08:00:00Z,2026-01-15T08:00:00Z

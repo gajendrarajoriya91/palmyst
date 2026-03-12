@@ -1,2 +1,5 @@
 node_modules
+*.env
 
+supabase/functions/.env
+.env.local
